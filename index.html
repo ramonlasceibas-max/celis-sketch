@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Celis Sketchpad | V46 Junta</title>
+    <title>Celis Sketchpad | V63 FINAL</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a202c">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,39 +13,48 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
-        body { background-color: #2d3748; color: white; margin: 0; overflow: hidden; touch-action: none; }
+        body { background-color: #2d3748; color: white; margin: 0; overflow: hidden; position: fixed; width: 100%; height: 100%; font-family: sans-serif; touch-action: none; }
         #main-app { display: none; height: 100vh; flex-direction: column; }
-        #canvas-container { position: relative; flex-grow: 1; background-color: #333; }
+        #canvas-container { position: relative; flex-grow: 1; background-color: #333; overflow: hidden; }
         .notebook-style {
             background-color: #fdf6e3 !important;
             background-image: linear-gradient(#e2e2e2 1px, transparent 1px), linear-gradient(90deg, transparent 40px, #d42a2a 40px, #d42a2a 42px, transparent 42px) !important;
             background-size: 100% 30px !important;
         }
-        #pizarra { position: absolute; top: 0; left: 0; z-index: 10; touch-action: none; }
-        .top-bar { height: 60px; background: #1a202c; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; z-index: 20; }
-        .bottom-bar { height: 85px; background: #1a202c; display: flex; align-items: center; padding: 0 10px; overflow-x: auto; border-top: 1px solid #4a5568; z-index: 20; }
-        .tool-btn { width: 45px; height: 45px; border-radius: 8px; background: #2d3748; display: inline-flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #a0aec0; flex-shrink: 0; margin: 0 4px; border: 1px solid #4a5568; }
-        .tool-btn.active { background: #00E5FF; color: #000; border-color: #00E5FF; }
-        .magic-active { background: #764ba2; color: white; border-color: white; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+        .top-bar { height: 60px; background: #1a202c; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; z-index: 50; border-bottom: 1px solid #4a5568; }
+        .bottom-bar { height: 85px; background: #1a202c; display: flex; align-items: center; padding: 0 10px; overflow-x: auto; border-top: 1px solid #4a5568; z-index: 50; }
+        .tool-btn { width: 44px; height: 44px; border-radius: 8px; background: #2d3748; display: inline-flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #a0aec0; flex-shrink: 0; margin: 0 4px; border: 1px solid #4a5568; cursor: pointer; }
+        .tool-btn.active { background: #00E5FF; color: #000; border-color: #00E5FF; transform: translateY(-2px); }
+        .magic-active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; color: white !important; border: none !important; }
+        #galleryModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; align-items: center; justify-content: center; padding: 10px; }
+        .gallery-box { background: #1a202c; width: 100%; max-width: 450px; max-height: 80vh; border-radius: 10px; padding: 15px; overflow-y: auto; border: 1px solid #4a5568; }
     </style>
 </head>
 <body>
 
-    <div id="modeOverlay" class="fixed inset-0 bg-black flex flex-col items-center justify-center z-[100]">
-        <h2 class="text-3xl font-bold mb-10 text-cyan-400">CELIS SKETCH</h2>
+    <div id="modeOverlay" class="fixed inset-0 bg-black flex flex-col items-center justify-center z-[500]">
+        <h2 class="text-3xl font-bold mb-8 text-cyan-400 tracking-widest">HERRERÍA CELIS</h2>
         <div class="flex gap-6">
-            <button onclick="initApp('paper')" class="w-32 h-32 bg-[#fdf6e3] text-black rounded-2xl font-bold border-4 border-red-600">HOJA</button>
-            <button onclick="initApp('photo')" class="w-32 h-32 bg-cyan-500 text-black rounded-2xl font-bold border-4 border-white">FOTO</button>
+            <button onclick="initApp('paper')" class="w-32 h-32 bg-[#fdf6e3] text-black rounded-xl font-bold border-4 border-red-500 shadow-xl flex flex-col items-center justify-center"><i class="fas fa-pencil-alt text-2xl mb-2"></i>HOJA</button>
+            <button onclick="initApp('photo')" class="w-32 h-32 bg-cyan-500 text-black rounded-xl font-bold border-4 border-white shadow-xl flex flex-col items-center justify-center"><i class="fas fa-camera text-2xl mb-2"></i>FOTO</button>
         </div>
+        <button onclick="abrirGaleria()" class="mt-8 text-gray-300 border border-gray-600 px-6 py-3 rounded-lg flex items-center gap-2"><i class="fas fa-folder-open text-yellow-500"></i> Mis Dibujos</button>
+        <p class="mt-4 text-xs text-gray-600">v63 TEXTO SEGURO</p>
     </div>
 
     <div id="main-app">
         <div class="top-bar">
-            <button onclick="location.reload()" class="text-gray-400"><i class="fas fa-home text-xl"></i></button>
-            <div class="flex gap-3">
-                <button onclick="deshacer()" class="text-gray-300 px-2"><i class="fas fa-undo text-xl"></i></button>
-                <button onclick="borrarLienzoSmart()" class="text-red-500 px-2"><i class="fas fa-trash text-xl"></i></button>
-                <button onclick="generarPDFTaller()" class="bg-white text-black px-4 py-1 rounded font-bold text-sm">TALLER</button>
+            <div class="flex gap-2">
+                <button onclick="location.reload()" class="tool-btn"><i class="fas fa-home"></i></button>
+                <button onclick="abrirGaleria()" class="tool-btn text-yellow-500"><i class="fas fa-folder"></i></button>
+                <button onclick="document.getElementById('cameraInput').click()" class="tool-btn text-blue-400"><i class="fas fa-camera"></i></button>
+            </div>
+            <div class="flex gap-2 items-center">
+                <button onclick="deshacer()" class="tool-btn"><i class="fas fa-undo"></i></button>
+                <button onclick="borrarLienzoSmart()" class="tool-btn text-red-500"><i class="fas fa-trash"></i></button>
+                <button onclick="guardarNuevo()" class="bg-green-600 text-white px-3 py-2 rounded font-bold text-xs shadow">GUARDAR</button>
+                <button onclick="generarPDFTaller()" class="bg-white text-black px-3 py-2 rounded font-bold text-xs shadow">PDF</button>
             </div>
         </div>
 
@@ -61,8 +70,9 @@
             <button onclick="setTool('arc', this)" class="tool-btn text-white"><i class="fas fa-bezier-curve"></i></button>
             <button onclick="setTool('rect', this)" class="tool-btn"><i class="far fa-square"></i></button>
             <button onclick="setTool('circle', this)" class="tool-btn"><i class="far fa-circle"></i></button>
+            <button onclick="setTool('arrow', this)" class="tool-btn"><i class="fas fa-arrows-alt-h"></i></button>
             <button onclick="setTool('text', this)" class="tool-btn font-bold">T</button>
-            <div class="w-px h-8 bg-gray-600 mx-2"></div>
+            <div class="w-px h-8 bg-gray-600 mx-2 flex-shrink-0"></div>
             <button onclick="setColor('#00E5FF', this)" class="tool-btn" style="color:#00E5FF"><i class="fas fa-circle"></i></button>
             <button onclick="setColor('#FF4444', this)" class="tool-btn" style="color:#FF4444"><i class="fas fa-circle"></i></button>
             <button onclick="setColor('#FFFF00', this)" class="tool-btn" style="color:#FFFF00"><i class="fas fa-circle"></i></button>
@@ -70,20 +80,30 @@
         </div>
     </div>
 
+    <div id="galleryModal">
+        <div class="gallery-box">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-600">
+                <h3 class="font-bold text-xl text-cyan-400">Mis Proyectos</h3>
+                <button onclick="cerrarGaleria()" class="text-white bg-gray-700 px-3 py-1 rounded">Cerrar</button>
+            </div>
+            <div id="listaDibujos" class="space-y-3"></div>
+        </div>
+    </div>
+
     <script>
         const canvas = document.getElementById('pizarra');
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('canvas-container');
-        
-        let currentMode = '', history = [], isDrawing = false, points = [];
-        let currentTool = 'free', currentColor = '#00E5FF', snapshot, isMagicOn = false;
+        let currentMode = 'paper'; let history = []; let isDrawing = false; let points = []; 
+        let currentTool = 'free'; let currentColor = '#00E5FF'; let snapshot; let imgFondo = null;
+        let isMagicOn = false;
 
         function initApp(mode) {
             currentMode = mode;
             document.getElementById('modeOverlay').style.display = 'none';
             document.getElementById('main-app').style.display = 'flex';
             if(mode === 'paper') container.classList.add('notebook-style');
-            else document.getElementById('cameraInput').click();
+            else if(mode === 'photo') document.getElementById('cameraInput').click();
             setTimeout(resizeCanvas, 100);
         }
 
@@ -91,6 +111,7 @@
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
             ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3;
+            ctx.strokeStyle = currentColor;
             if(history.length > 0) {
                 let img = new Image(); img.src = history[history.length-1];
                 img.onload = () => ctx.drawImage(img, 0, 0);
@@ -98,97 +119,224 @@
         }
 
         function cargarImagen(input) {
-            if (input.files[0]) {
+            if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = new Image();
-                    img.onload = () => {
-                        ctx.clearRect(0,0,canvas.width,canvas.height);
-                        const ratio = Math.min(canvas.width/img.width, canvas.height/img.height);
-                        ctx.drawImage(img, (canvas.width-img.width*ratio)/2, (canvas.height-img.height*ratio)/2, img.width*ratio, img.height*ratio);
-                        saveState();
-                    };
+                    img.onload = () => { imgFondo = img; ctx.clearRect(0,0,canvas.width,canvas.height); const ratio = Math.min(canvas.width/img.width, canvas.height/img.height); ctx.drawImage(img, (canvas.width-img.width*ratio)/2, (canvas.height-img.height*ratio)/2, img.width*ratio, img.height*ratio); saveState(); };
                     img.src = e.target.result;
                 };
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
-        const getPos = (e) => {
-            const r = canvas.getBoundingClientRect();
-            const cx = e.touches ? e.touches[0].clientX : e.clientX;
-            const cy = e.touches ? e.touches[0].clientY : e.clientY;
-            return { x: cx - r.left, y: cy - r.top };
+        function getPos(e) {
+            const r = canvas.getBoundingClientRect(); const ev = e.touches ? e.touches[0] : e;
+            return { x: ev.clientX - r.left, y: ev.clientY - r.top };
         }
 
-        canvas.addEventListener('touchstart', (e) => {
-            const pos = getPos(e);
+        function start(e) {
+            const pos = getPos(e); 
             if(currentTool === 'text') { insertarTexto(pos.x, pos.y); return; }
-            isDrawing = true; points = [pos];
-            snapshot = ctx.getImageData(0,0,canvas.width,canvas.height);
+            isDrawing = true; points = [pos]; snapshot = ctx.getImageData(0,0,canvas.width,canvas.height);
             ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
-            if(currentTool === 'eraser') {
-                ctx.globalCompositeOperation = (currentMode === 'paper') ? 'destination-out' : 'source-over';
-                ctx.strokeStyle = (currentMode === 'paper') ? 'rgba(0,0,0,1)' : '#ffffff';
-                ctx.lineWidth = 30;
-            } else {
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.strokeStyle = currentColor; ctx.lineWidth = 3;
-            }
-        });
+            ctx.globalCompositeOperation = (currentTool === 'eraser' && currentMode === 'paper') ? 'destination-out' : 'source-over';
+            ctx.strokeStyle = (currentTool === 'eraser' && currentMode === 'photo') ? '#ffffff' : currentColor;
+            ctx.lineWidth = (currentTool === 'eraser') ? 30 : 3;
+        }
 
-        canvas.addEventListener('touchmove', (e) => {
-            if(!isDrawing) return; e.preventDefault();
-            const pos = getPos(e);
+        function move(e) {
+            if(!isDrawing) return; const pos = getPos(e);
             if(currentTool !== 'free' && currentTool !== 'eraser') ctx.putImageData(snapshot, 0, 0);
             
-            if(currentTool === 'free' || currentTool === 'eraser') {
-                ctx.lineTo(pos.x, pos.y); ctx.stroke(); points.push(pos);
-            } else if(currentTool === 'rect') {
-                ctx.strokeRect(points[0].x, points[0].y, pos.x-points[0].x, pos.y-points[0].y);
-            } else if(currentTool === 'circle') {
-                const r = Math.sqrt(Math.pow(pos.x-points[0].x,2)+Math.pow(pos.y-points[0].y,2));
-                ctx.beginPath(); ctx.arc(points[0].x, points[0].y, r, 0, Math.PI*2); ctx.stroke();
-            } else if(currentTool === 'arc') {
-                const midX = (points[0].x + pos.x)/2; const midY = (points[0].y + pos.y)/2;
-                const dist = Math.sqrt(Math.pow(pos.x-points[0].x,2)+Math.pow(pos.y-points[0].y,2));
-                ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
-                ctx.quadraticCurveTo(midX, midY - dist/2, pos.x, pos.y); ctx.stroke();
+            if(currentTool === 'free' || currentTool === 'eraser') { 
+                ctx.lineTo(pos.x, pos.y); ctx.stroke(); 
+                if(isMagicOn && currentTool === 'free') points.push(pos);
             }
-        });
+            else if(currentTool === 'rect') { ctx.strokeRect(points[0].x, points[0].y, pos.x-points[0].x, pos.y-points[0].y); }
+            else if(currentTool === 'circle') { const r = Math.sqrt(Math.pow(pos.x-points[0].x,2)+Math.pow(pos.y-points[0].y,2)); ctx.beginPath(); ctx.arc(points[0].x, points[0].y, r, 0, Math.PI*2); ctx.stroke(); }
+            else if(currentTool === 'arc') { const midX = (points[0].x + pos.x)/2; const midY = (points[0].y + pos.y)/2; const dist = Math.sqrt(Math.pow(pos.x-points[0].x,2)+Math.pow(pos.y-points[0].y,2)); ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); ctx.quadraticCurveTo(midX, midY - dist/3, pos.x, pos.y); ctx.stroke(); }
+            else if(currentTool === 'arrow') { drawArrowDouble(points[0].x, points[0].y, pos.x, pos.y); }
+        }
 
-        canvas.addEventListener('touchend', () => {
-            if(!isDrawing) return; isDrawing = false;
-            if(currentTool === 'free' && isMagicOn && points.length > 5) {
+        function end() { 
+            if(!isDrawing) return; isDrawing = false; 
+            
+            // Magia (Enderezar)
+            if (isMagicOn && currentTool === 'free' && points.length > 2) {
                 ctx.putImageData(snapshot, 0, 0);
-                ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
-                ctx.lineTo(points[points.length-1].x, points[points.length-1].y); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                ctx.lineTo(points[points.length-1].x, points[points.length-1].y);
+                ctx.stroke();
+                points = [];
             }
-            ctx.globalCompositeOperation = 'source-over';
-            saveState();
-        });
 
+            ctx.globalCompositeOperation = 'source-over'; 
+            saveState(); 
+        }
+
+        function drawArrowDouble(x1, y1, x2, y2) {
+            const h = 15; const a = Math.atan2(y2-y1, x2-x1);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2-h*Math.cos(a-Math.PI/6), y2-h*Math.sin(a-Math.PI/6)); ctx.lineTo(x2-h*Math.cos(a+Math.PI/6), y2-h*Math.sin(a+Math.PI/6)); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1+h*Math.cos(a-Math.PI/6), y1+h*Math.sin(a-Math.PI/6)); ctx.lineTo(x1+h*Math.cos(a+Math.PI/6), y1+h*Math.sin(a+Math.PI/6)); ctx.fill();
+        }
+
+        // --- FUNCIÓN DE TEXTO BLINDADA (AJUSTE Y BORDE) ---
         async function insertarTexto(x, y) {
-            const { value: t } = await Swal.fire({ title: 'Medida', input: 'text' });
-            if(t) { ctx.font = "20px Patrick Hand"; ctx.fillStyle = currentColor; ctx.fillText(t, x, y); saveState(); }
+            const { value: t } = await Swal.fire({ 
+                title: 'Nota', 
+                input: 'textarea', 
+                inputPlaceholder: 'Escribe aquí...',
+                confirmButtonColor: '#00E5FF' 
+            });
+            
+            if(t) { 
+                ctx.save();
+                let txt = t;
+                if(!isNaN(parseFloat(t)) && isFinite(t)) { txt = t.startsWith('.') ? t+'cm' : t+'m'; }
+                
+                ctx.font = "bold 22px sans-serif"; 
+                ctx.fillStyle = currentColor;
+                ctx.textBaseline = "top";
+
+                // CONFIGURACIÓN DE AJUSTE
+                const maxWidth = 180; // Ancho máximo
+                const lineHeight = 28;
+                let currentY = y;
+                let startX = x;
+
+                // DETECCIÓN DE BORDE: Si está muy a la derecha, mover a la izquierda
+                if (startX + maxWidth > canvas.width) {
+                    startX = canvas.width - maxWidth - 20; 
+                }
+
+                // DIVIDIR POR SALTOS DE LÍNEA MANUALES (ENTER)
+                const paragraphs = txt.split('\n');
+
+                paragraphs.forEach(paragraph => {
+                    const words = paragraph.split(' ');
+                    let line = '';
+
+                    for(let n = 0; n < words.length; n++) {
+                        let testLine = line + words[n] + ' ';
+                        let metrics = ctx.measureText(testLine);
+                        if (metrics.width > maxWidth && n > 0) {
+                            ctx.fillText(line, startX, currentY);
+                            line = words[n] + ' ';
+                            currentY += lineHeight;
+                        } else {
+                            line = testLine;
+                        }
+                    }
+                    ctx.fillText(line, startX, currentY);
+                    currentY += lineHeight; // Salto extra por párrafo
+                });
+
+                ctx.restore();
+                saveState();
+            }
         }
 
-        function setTool(t, btn) {
-            currentTool = t;
-            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        canvas.addEventListener('touchstart', (e)=>{e.preventDefault(); start(e)}, {passive:false});
+        canvas.addEventListener('touchmove', (e)=>{e.preventDefault(); move(e)}, {passive:false});
+        canvas.addEventListener('touchend', end);
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+
+        function setTool(t, btn) { 
+            currentTool = t; 
+            document.querySelectorAll('.bottom-bar .tool-btn').forEach(b=>{
+                if(b.id !== 'btnMagic') b.classList.remove('active');
+            }); 
+            btn.classList.add('active'); 
+        }
+        function setColor(c, btn) { currentColor = c; }
+        
+        function toggleMagic() {
+            isMagicOn = !isMagicOn;
+            document.getElementById('btnMagic').classList.toggle('magic-active');
         }
 
-        function setColor(c, btn) {
-            currentColor = c;
-            if(currentTool === 'eraser') setTool('free', document.querySelector('.tool-btn:nth-child(3)'));
+        function saveState() { history.push(canvas.toDataURL()); if(history.length > 20) history.shift(); }
+        function deshacer() { if(history.length > 1) { history.pop(); let img = new Image(); img.src = history[history.length-1]; img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0); } } else { borrarLienzoSmart(); } }
+        
+        function borrarLienzoSmart() { 
+            ctx.clearRect(0,0,canvas.width,canvas.height); 
+            if(currentMode==='photo' && imgFondo) {
+                const ratio = Math.min(canvas.width/imgFondo.width, canvas.height/imgFondo.height); 
+                ctx.drawImage(imgFondo, (canvas.width-imgFondo.width*ratio)/2, (canvas.height-imgFondo.height*ratio)/2, imgFondo.width*ratio, imgFondo.height*ratio);
+            }
+            history=[]; saveState(); 
         }
 
-        function toggleMagic() { isMagicOn = !isMagicOn; document.getElementById('btnMagic').classList.toggle('magic-active'); }
-        function saveState() { history.push(canvas.toDataURL()); if(history.length > 15) history.shift(); }
-        function deshacer() { if(history.length > 1) { history.pop(); let img = new Image(); img.src = history[history.length-1]; img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0); } } }
-        function borrarLienzoSmart() { ctx.clearRect(0,0,canvas.width,canvas.height); history = []; }
-        function generarPDFTaller() { const doc = new jsPDF(); doc.text("HERRERIA CELIS", 10, 10); doc.addImage(canvas.toDataURL(), 'PNG', 10, 20, 180, 120); doc.save('Celis.pdf'); }
+        function guardarNuevo() {
+            Swal.fire({ title: 'Nombre:', input: 'text', showCancelButton: true, confirmButtonColor: '#16a34a' }).then((result) => {
+                if (result.value) {
+                    const db = JSON.parse(localStorage.getItem('celis_db') || '[]');
+                    db.unshift({ nombre: result.value, data: canvas.toDataURL(), mode: currentMode, fecha: new Date().toLocaleDateString() });
+                    localStorage.setItem('celis_db', JSON.stringify(db));
+                    Swal.fire({toast:true, position:'top', icon:'success', title:'Guardado', timer:1500, showConfirmButton:false});
+                }
+            });
+        }
+
+        function abrirGaleria() {
+            const db = JSON.parse(localStorage.getItem('celis_db') || '[]');
+            const lista = document.getElementById('listaDibujos');
+            document.getElementById('galleryModal').style.display = 'flex';
+            if(db.length === 0) { lista.innerHTML = "<p class='text-gray-400 text-center py-4'>Vacío</p>"; return; }
+            lista.innerHTML = db.map((d, i) => `
+                <div class="bg-gray-800 p-3 rounded flex justify-between items-center border border-gray-700">
+                    <div><div class="font-bold text-white">${d.nombre}</div><div class="text-xs text-gray-400">${d.fecha}</div></div>
+                    <div class="flex gap-2">
+                        <button onclick="cargarDibujo(${i})" class="bg-cyan-600 text-white px-3 py-1 rounded text-sm font-bold">Abrir</button>
+                        <button onclick="eliminarDibujo(${i})" class="bg-red-600 text-white px-3 py-1 rounded text-sm"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function cargarDibujo(i) {
+            const db = JSON.parse(localStorage.getItem('celis_db')); const d = db[i]; initApp(d.mode); 
+            const img = new Image(); img.src = d.data;
+            img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0); saveState(); cerrarGaleria(); };
+        }
+
+        function eliminarDibujo(i) {
+            Swal.fire({ title: '¿Borrar?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }).then((result) => {
+                if (result.isConfirmed) {
+                    let db = JSON.parse(localStorage.getItem('celis_db')); db.splice(i, 1);
+                    localStorage.setItem('celis_db', JSON.stringify(db)); abrirGaleria();
+                }
+            })
+        }
+
+        function cerrarGaleria() { document.getElementById('galleryModal').style.display = 'none'; }
+
+        function generarPDFTaller() {
+            const { jsPDF } = window.jspdf;
+            const orient = canvas.width > canvas.height ? 'l' : 'p';
+            const doc = new jsPDF(orient, 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+            const tCtx = tempCanvas.getContext('2d');
+            
+            tCtx.fillStyle = '#ffffff'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            if(currentMode === 'photo' && imgFondo) {
+                const r = Math.min(canvas.width/imgFondo.width, canvas.height/imgFondo.height);
+                tCtx.drawImage(imgFondo, (canvas.width-imgFondo.width*r)/2, (canvas.height-imgFondo.height*r)/2, imgFondo.width*r, imgFondo.height*r);
+            }
+            tCtx.drawImage(canvas, 0, 0);
+            
+            const finalImg = tempCanvas.toDataURL('image/png');
+            const imgProps = doc.getImageProperties(finalImg);
+            const pdfRatio = Math.min(pageWidth / imgProps.width, pageHeight / imgProps.height);
+            doc.addImage(finalImg, 'PNG', (pageWidth - imgProps.width*pdfRatio) / 2, (pageHeight - imgProps.height*pdfRatio) / 2, imgProps.width*pdfRatio, imgProps.height*pdfRatio);
+            doc.save(`Taller_Celis_${Date.now()}.pdf`);
+        }
     </script>
 </body>
 </html>
