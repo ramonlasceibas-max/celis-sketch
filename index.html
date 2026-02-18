@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Celis Sketchpad | V43 Full</title>
+    <title>Celis Sketchpad | V44 Fixes</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00E5FF">
@@ -37,25 +37,22 @@
         #main-app { display: none; height: 100vh; flex-direction: column; opacity: 0; transition: opacity 0.3s; }
         #canvas-container { position: relative; flex-grow: 1; width: 100%; overflow: hidden; background-color: #333; touch-action: none; }
         
+        /* EL TRUCO DEL CUADERNO: Fondo CSS detrás del canvas */
         .notebook-style {
             background-color: #fdf6e3 !important;
             background-image: linear-gradient(#e2e2e2 1px, transparent 1px), linear-gradient(90deg, transparent 40px, #d42a2a 40px, #d42a2a 42px, transparent 42px) !important;
             background-size: 100% 30px !important;
         }
 
-        #pizarra { position: absolute; top: 0; left: 0; touch-action: none; }
+        #pizarra { position: absolute; top: 0; left: 0; touch-action: none; z-index: 10; }
 
         /* BARRAS */
         .top-bar { height: 60px; background: #1a202c; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border-bottom: 1px solid #4a5568; z-index: 50; }
         .bottom-bar { height: 80px; background: #1a202c; display: flex; align-items: center; padding: 0 10px; overflow-x: auto; border-top: 1px solid #4a5568; z-index: 50; white-space: nowrap; }
-        
-        /* Scroll oculto pero funcional */
-        .bottom-bar::-webkit-scrollbar { display: none; }
-        .bottom-bar { -ms-overflow-style: none; scrollbar-width: none; }
+        .bottom-bar::-webkit-scrollbar { display: none; } /* Ocultar scroll */
 
         .tool-btn { width: 42px; height: 42px; border-radius: 8px; background: #2d3748; display: inline-flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #a0aec0; transition: 0.2s; flex-shrink: 0; border: 1px solid #4a5568; margin: 0 3px; }
         .tool-btn.active { background: #00E5FF; color: #000; border-color: #00E5FF; transform: translateY(-3px); box-shadow: 0 0 10px rgba(0,229,255,0.3); }
-        .btn-mini { padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; margin-left: 5px; cursor: pointer; }
         
         .magic-active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; box-shadow: 0 0 15px #764ba2; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(118, 75, 162, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(118, 75, 162, 0); } 100% { box-shadow: 0 0 0 0 rgba(118, 75, 162, 0); } }
@@ -76,7 +73,7 @@
         <button onclick="abrirGaleria()" class="mt-8 text-gray-400 hover:text-white border border-gray-600 px-4 py-2 rounded-lg flex items-center gap-2">
             <i class="fas fa-folder-open"></i> Ver Guardados
         </button>
-        <p class="text-gray-500 mt-4 text-xs">V43.0 Full (Magia+Arco)</p>
+        <p class="text-gray-500 mt-4 text-xs">V44.0 Goma Inteligente</p>
     </div>
 
     <div id="main-app">
@@ -111,7 +108,7 @@
             
             <button onclick="setTool('free', this)" class="tool-btn active"><i class="fas fa-pen"></i></button>
             
-            <button onclick="setTool('arc', this)" class="tool-btn text-white" title="Arco"><i class="fas fa-bezier-curve"></i></button>
+            <button onclick="setTool('arc', this)" class="tool-btn text-white bg-blue-900 border-blue-500" title="Arco"><i class="fas fa-bezier-curve"></i></button>
             
             <button onclick="setTool('rect', this)" class="tool-btn"><i class="far fa-square"></i></button>
             <button onclick="setTool('circle', this)" class="tool-btn"><i class="far fa-circle"></i></button>
@@ -122,7 +119,8 @@
 
             <button onclick="setColor('#00E5FF', this)" class="tool-btn" style="color:#00E5FF"><i class="fas fa-circle"></i></button>
             <button onclick="setColor('#FF4444', this)" class="tool-btn" style="color:#FF4444"><i class="fas fa-circle"></i></button>
-            <button onclick="setColor('#FFFF00', this)" class="tool-btn" style="color:#FFFF00"><i class="fas fa-circle"></i></button> <button onclick="setColor('#1a202c', this)" id="btnBlackColor" class="tool-btn" style="color:#1a202c"><i class="fas fa-circle"></i></button>
+            <button onclick="setColor('#FFFF00', this)" class="tool-btn" style="color:#FFFF00"><i class="fas fa-circle"></i></button>
+            <button onclick="setColor('#1a202c', this)" id="btnBlackColor" class="tool-btn" style="color:#1a202c"><i class="fas fa-circle"></i></button>
         </div>
     </div>
 
@@ -160,14 +158,13 @@
                     container.classList.add('notebook-style');
                     document.getElementById('btnCamaraTop').classList.add('hidden');
                     setColor('#1a202c', document.getElementById('btnBlackColor'));
-                    resizeCanvas();
                 } else {
                     container.classList.remove('notebook-style');
                     document.getElementById('btnCamaraTop').classList.remove('hidden');
                     setColor('#00E5FF');
                     document.getElementById('cameraInput').click();
-                    resizeCanvas();
                 }
+                resizeCanvas();
             }, 50);
         }
 
@@ -180,7 +177,11 @@
             ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3; 
             ctx.strokeStyle = currentColor; ctx.fillStyle = currentColor;
             if(currentMode === 'photo' && imgDrawProps) dibujarFondoEnCanvas(imgDrawProps.img);
-            else if (savedData) { const img = new Image(); img.src = savedData; img.onload = () => ctx.drawImage(img, 0, 0); }
+            else if (savedData) { 
+                const img = new Image(); 
+                img.src = savedData; 
+                img.onload = () => ctx.drawImage(img, 0, 0); 
+            }
         }
         window.addEventListener('resize', resizeCanvas);
 
@@ -219,10 +220,11 @@
                 e.preventDefault(); await insertarTexto(pos.x, pos.y); return;
             }
 
-            // Lógica ARCO
+            // --- LÓGICA DE ARCO CORREGIDA ---
+            // Si estamos en modo curvar, NO inicies un nuevo dibujo.
             if(currentTool === 'arc' && isBending) {
-                isDrawing = true;
-                return;
+                isDrawing = true; 
+                return; // Importante: Salir para no borrar la línea
             }
 
             isDrawing = true;
@@ -230,10 +232,20 @@
             snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
             ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
             
+            // --- LÓGICA DE GOMA CORREGIDA ---
             if (currentTool === 'eraser') {
-                ctx.strokeStyle = (currentMode === 'paper') ? '#fdf6e3' : '#ffffff';
-                ctx.lineWidth = 25;
+                if(currentMode === 'paper') {
+                    // MODO TRANSPARENCIA: Borra la tinta, deja ver el fondo CSS
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.lineWidth = 25;
+                } else {
+                    // MODO CORRECTOR (FOTOS): Pinta de blanco/color
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = '#ffffff'; // O el color que quieras
+                    ctx.lineWidth = 20;
+                }
             } else {
+                ctx.globalCompositeOperation = 'source-over';
                 ctx.strokeStyle = currentColor; ctx.fillStyle = currentColor; ctx.lineWidth = 3;
             }
         }
@@ -243,13 +255,15 @@
             if(e.type === 'touchmove') e.preventDefault(); 
             const pos = getPos(e);
             
+            // --- MOVIMIENTO DE ARCO CORREGIDO ---
             if(currentTool === 'arc' && isBending) {
+                // Restauramos la línea original (guardada en snapshot al levantar el dedo en el paso 1)
                 ctx.putImageData(snapshot, 0, 0);
-                drawCurve(points[0], points[1], pos);
+                drawCurve(points[0], points[1], pos); // pos es el dedo actual jalando la curva
                 return;
             }
 
-            if(currentTool !== 'free') ctx.putImageData(snapshot, 0, 0);
+            if(currentTool !== 'free' && currentTool !== 'eraser') ctx.putImageData(snapshot, 0, 0);
             
             if (currentTool === 'free' || currentTool === 'eraser') {
                 points.push(pos);
@@ -261,7 +275,9 @@
             } else if (currentTool === 'arrow') {
                 drawArrow(points[0].x, points[0].y, pos.x, pos.y);
             } else if (currentTool === 'arc') {
+                // Paso 1: Dibujando la línea base
                 ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
+                // Línea guía
                 ctx.save(); ctx.setLineDash([5, 5]); ctx.strokeStyle = 'gray'; ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
                 ctx.restore();
@@ -272,31 +288,38 @@
             if (!isDrawing) return;
             isDrawing = false;
             
+            // --- FINALIZACIÓN DE ARCO CORREGIDO ---
             if (currentTool === 'arc') {
                 if (!isBending) {
+                    // Terminó Paso 1: Línea recta hecha
                     const pos = getPos(e);
-                    points[1] = pos;
-                    isBending = true;
+                    points[1] = pos; // Guardamos donde terminó la línea
+                    isBending = true; // ACTIVAMOS MODO CURVA
+                    
+                    // IMPORTANTE: Guardamos el estado AQUÍ para poder borrar la curva mientras la mueves
                     snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    Swal.fire({toast:true, position:'top', title:'¡Ahora arrastra para curvar!', timer:1500, showConfirmButton:false});
+                    
+                    Swal.fire({toast:true, position:'top', icon:'info', title:'Paso 2: Toca y arrastra para curvar', timer:2000, showConfirmButton:false});
                 } else {
-                    isBending = false;
+                    // Terminó Paso 2: Curva hecha
+                    isBending = false; // RESETEAMOS
                     saveState();
                 }
                 return;
             }
 
-            // LÓGICA DE MAGIA (Enderezar)
             if (currentTool === 'free' && isMagicOn && points.length > 5) {
                 const start = points[0]; const end = points[points.length - 1];
-                ctx.putImageData(snapshot, 0, 0); // Borra el garabato
-                ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke(); // Dibuja recta
+                ctx.putImageData(snapshot, 0, 0); 
+                ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke(); 
             }
 
+            // Resetear composite por si acaso
+            ctx.globalCompositeOperation = 'source-over';
             saveState();
         }
 
-        // HERRAMIENTAS GEOMÉTRICAS
+        // HERRAMIENTAS
         function drawRect(x, y, w, h) { ctx.beginPath(); ctx.rect(x, y, w, h); ctx.stroke(); }
         function drawCircle(x1, y1, x2, y2) { const r = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)); ctx.beginPath(); ctx.arc(x1, y1, r, 0, 2 * Math.PI); ctx.stroke(); }
         function drawArrow(x1, y1, x2, y2) {
@@ -348,6 +371,7 @@
         }
         function setColor(col, btn) { 
             currentColor = col; 
+            // Si estaba en goma, volver a lápiz automáticamente
             if(currentTool === 'eraser') setTool('free', document.querySelector('.bottom-bar .tool-btn:nth-child(4)')); 
             if(btn) { document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => { if(b.querySelector('.rounded-full')) b.classList.remove('active'); }); btn.classList.add('active'); } 
         }
