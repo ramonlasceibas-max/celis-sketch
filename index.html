@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Celis Sketchpad | App Oficial</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00E5FF">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="celis_sketch_icon.png">
+    <link rel="icon" type="image/png" href="celis_sketch_icon.png">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        body { background-color: #2d3748; color: white; font-family: 'Segoe UI', 'Patrick Hand', sans-serif; overflow: hidden; overscroll-behavior: none; }
+
+        /* PANTALLA INICIAL */
+        #modeOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .mode-btn { width: 140px; height: 140px; border-radius: 20px; margin: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; transition: 0.2s; cursor: pointer; border: 4px solid transparent; }
+        .mode-btn:active { transform: scale(0.95); }
+        .mode-paper { background: #fdf6e3; color: #333; border-color: #d42a2a; font-family: 'Patrick Hand', cursive; }
+        .mode-photo { background: #00E5FF; color: #000; border-color: white; }
+
+        /* GALERÍA */
+        #galleryModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
+        .gallery-content { background: #1a202c; width: 100%; max-width: 500px; max-height: 80vh; border-radius: 10px; overflow-y: auto; padding: 15px; border: 1px solid #4a5568; }
+        .saved-item { display: flex; align-items: center; justify-content: space-between; background: #2d3748; padding: 10px; margin-bottom: 8px; border-radius: 8px; border-left: 4px solid #00E5FF; border-bottom: 1px solid #444; }
+
+        /* APP */
+        #main-app { display: none; height: 100vh; flex-direction: column; opacity: 0; transition: opacity 0.3s; }
+        #canvas-container { position: relative; flex-grow: 1; width: 100%; overflow: hidden; background-color: #333; touch-action: none; }
+        
+        .notebook-style {
+            background-color: #fdf6e3 !important;
+            background-image: linear-gradient(#e2e2e2 1px, transparent 1px), linear-gradient(90deg, transparent 40px, #d42a2a 40px, #d42a2a 42px, transparent 42px) !important;
+            background-size: 100% 30px !important;
+        }
+
+        #pizarra { position: absolute; top: 0; left: 0; touch-action: none; }
+
+        /* BARRAS */
+        .top-bar { height: 60px; background: #1a202c; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border-bottom: 1px solid #4a5568; z-index: 50; }
+        .bottom-bar { height: 80px; background: #1a202c; display: flex; align-items: center; justify-content: space-around; padding: 0 5px; overflow-x: auto; border-top: 1px solid #4a5568; z-index: 50; }
+
+        .tool-btn { width: 45px; height: 45px; border-radius: 10px; background: #2d3748; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #a0aec0; transition: 0.2s; flex-shrink: 0; border: 1px solid #4a5568; margin: 0 2px; }
+        .tool-btn.active { background: #00E5FF; color: #000; border-color: #00E5FF; transform: translateY(-3px); box-shadow: 0 0 10px rgba(0,229,255,0.3); }
+        .btn-mini { padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; margin-left: 5px; cursor: pointer; }
+        
+        .magic-active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; box-shadow: 0 0 15px #764ba2; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(118, 75, 162, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(118, 75, 162, 0); } 100% { box-shadow: 0 0 0 0 rgba(118, 75, 162, 0); } }
+    </style>
+</head>
+<body>
+
+    <div id="modeOverlay">
+        <h2 class="text-3xl font-bold mb-8 text-[#00E5FF] tracking-widest">CELIS SKETCH</h2>
+        <div class="flex flex-wrap justify-center">
+            <button onclick="initApp('paper')" class="mode-btn mode-paper shadow-lg shadow-white/10">
+                <i class="fas fa-pencil-alt text-4xl mb-2"></i> Hoja<br>Blanca
+            </button>
+            <button onclick="initApp('photo')" class="mode-btn mode-photo shadow-lg shadow-cyan-500/50">
+                <i class="fas fa-camera text-4xl mb-2"></i> Usar<br>Foto
+            </button>
+        </div>
+        <button onclick="abrirGaleria()" class="mt-8 text-gray-400 hover:text-white border border-gray-600 px-4 py-2 rounded-lg flex items-center gap-2">
+            <i class="fas fa-folder-open"></i> Ver Guardados
+        </button>
+        <p class="text-gray-500 mt-4 text-xs">V41.0 App Oficial</p>
+    </div>
+
+    <div id="main-app">
+        <div class="top-bar">
+            <div class="flex items-center">
+                <button onclick="location.reload()" class="text-gray-400 text-lg px-2"><i class="fas fa-home"></i></button>
+                <button onclick="abrirGaleria()" class="text-yellow-500 text-lg px-2"><i class="fas fa-folder"></i></button>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="cargarImagenFromInput(this)">
+                <button id="btnCamaraTop" onclick="document.getElementById('cameraInput').click()" class="hidden text-blue-400 text-lg px-2"><i class="fas fa-camera"></i></button>
+                <button onclick="borrarLienzoSmart()" class="text-red-400 text-lg px-2"><i class="fas fa-trash"></i></button>
+                <button onclick="deshacer()" class="text-gray-300 text-lg px-2"><i class="fas fa-undo"></i></button>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="generarPDFTaller()" class="bg-white text-black border border-gray-300 px-3 py-1 rounded text-xs font-bold shadow">
+                    <i class="fas fa-print"></i> TALLER
+                </button>
+                <button onclick="guardarEnGaleria()" class="bg-green-600 text-white px-3 py-1 rounded text-xs font-bold shadow">
+                    <i class="fas fa-save"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="pizarra"></canvas>
+        </div>
+
+        <div class="bottom-bar">
+            <button onclick="toggleMagic()" id="btnMagic" class="tool-btn" title="Enderezar"><i class="fas fa-magic"></i></button>
+            <div class="w-px h-8 bg-gray-600 mx-1"></div>
+            
+            <button onclick="setTool('free', this)" class="tool-btn active"><i class="fas fa-pen"></i></button>
+            <button onclick="setTool('rect', this)" class="tool-btn"><i class="far fa-square"></i></button>
+            <button onclick="setTool('circle', this)" class="tool-btn"><i class="far fa-circle"></i></button>
+            <button onclick="setTool('arrow', this)" class="tool-btn"><i class="fas fa-arrows-alt-h"></i></button>
+            <button onclick="setTool('text', this)" class="tool-btn text-white font-bold font-serif" title="Texto / Etiquetas">T</button>
+            
+            <div class="w-px h-8 bg-gray-600 mx-1"></div>
+
+            <button onclick="setColor('#00E5FF', this)" class="tool-btn" style="color:#00E5FF"><i class="fas fa-circle"></i></button>
+            <button onclick="setColor('#FF4444', this)" class="tool-btn" style="color:#FF4444"><i class="fas fa-circle"></i></button>
+            <button onclick="setColor('#1a202c', this)" id="btnBlackColor" class="tool-btn" style="color:#1a202c"><i class="fas fa-circle"></i></button>
+        </div>
+    </div>
+
+    <div id="galleryModal">
+        <div class="gallery-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-[#00E5FF]">Mis Dibujos</h3>
+                <button onclick="document.getElementById('galleryModal').style.display='none'" class="text-red-500 font-bold text-xl">X</button>
+            </div>
+            <div id="listaDibujos" class="text-gray-400 text-sm italic">No hay dibujos guardados.</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('pizarra');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+        const mainApp = document.getElementById('main-app');
+        const overlay = document.getElementById('modeOverlay');
+        
+        let currentMode = ''; let imgDrawProps = null; let history = []; let isMagicOn = false;
+        let isDrawing = false; let points = []; let currentTool = 'free'; let currentColor = '#00E5FF'; let snapshot;
+
+        function initApp(mode) {
+            currentMode = mode;
+            overlay.style.display = 'none'; 
+            mainApp.style.display = 'flex'; 
+            setTimeout(() => {
+                mainApp.style.opacity = '1';
+                if (mode === 'paper') {
+                    container.classList.add('notebook-style');
+                    document.getElementById('btnCamaraTop').classList.add('hidden');
+                    setColor('#1a202c', document.getElementById('btnBlackColor'));
+                    resizeCanvas();
+                } else {
+                    container.classList.remove('notebook-style');
+                    document.getElementById('btnCamaraTop').classList.remove('hidden');
+                    setColor('#00E5FF');
+                    document.getElementById('cameraInput').click();
+                    resizeCanvas();
+                }
+            }, 50);
+        }
+
+        function resizeCanvas() {
+            if(container.clientWidth === 0) return;
+            let savedData = null;
+            if(canvas.width > 0) savedData = canvas.toDataURL();
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3; 
+            ctx.strokeStyle = currentColor; ctx.fillStyle = currentColor;
+            if(currentMode === 'photo' && imgDrawProps) dibujarFondoEnCanvas(imgDrawProps.img);
+            else if (savedData) { const img = new Image(); img.src = savedData; img.onload = () => ctx.drawImage(img, 0, 0); }
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function cargarImagenFromInput(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = new Image();
+                    img.onload = () => { resizeCanvas(); dibujarFondoEnCanvas(img); saveState(); };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            } else if(!imgDrawProps && currentMode === 'photo') location.reload();
+        }
+
+        function dibujarFondoEnCanvas(img) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const ratio = Math.min(canvas.width / img.width, canvas.height / img.height);
+            const w = img.width * ratio; const h = img.height * ratio;
+            const x = (canvas.width - w) / 2; const y = (canvas.height - h) / 2;
+            imgDrawProps = { img, x, y, w, h };
+            ctx.drawImage(img, x, y, w, h);
+        }
+
+        const getPos = (e) => {
+            const r = canvas.getBoundingClientRect();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: cx - r.left, y: cy - r.top };
+        }
+
+        const startDraw = async (e) => {
+            if(currentTool === 'text') {
+                const pos = getPos(e);
+                e.preventDefault();
+                await insertarTexto(pos.x, pos.y);
+                return;
+            }
+            isDrawing = true;
+            const pos = getPos(e);
+            points = [pos];
+            snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+            ctx.strokeStyle = currentColor; ctx.fillStyle = currentColor; ctx.lineWidth = 3;
+        }
+
+        const drawing = (e) => {
+            if (!isDrawing) return;
+            if(e.type === 'touchmove') e.preventDefault(); 
+            const pos = getPos(e);
+            points.push(pos);
+            if (currentTool === 'free') {
+                ctx.lineTo(pos.x, pos.y); ctx.stroke();
+            } else {
+                ctx.putImageData(snapshot, 0, 0);
+                if (currentTool === 'rect') drawRect(points[0].x, points[0].y, pos.x - points[0].x, pos.y - points[0].y);
+                else if (currentTool === 'circle') drawCircle(points[0].x, points[0].y, pos.x, pos.y);
+                else if (currentTool === 'arrow') drawArrow(points[0].x, points[0].y, pos.x, pos.y);
+            }
+        }
+
+        const stopDraw = () => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            if (currentTool === 'free' && isMagicOn && points.length > 5) {
+                const start = points[0]; const end = points[points.length - 1];
+                ctx.putImageData(snapshot, 0, 0);
+                ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+            }
+            saveState();
+        }
+
+        async function insertarTexto(x, y) {
+            const { value: text } = await Swal.fire({
+                title: 'Escribir',
+                input: 'textarea',
+                inputPlaceholder: 'Ej: 1.50 (se agrega m) o .50 (se agrega cm) o Ventana Baño',
+                showCancelButton: true,
+                confirmButtonColor: '#00E5FF',
+                background: '#1a202c', color: '#fff'
+            });
+            if (text) {
+                let finalText = text;
+                const esNumero = !isNaN(parseFloat(text)) && isFinite(text);
+                if (esNumero) {
+                    if (text.startsWith('.')) finalText += 'cm';
+                    else finalText += 'm';
+                }
+                ctx.font = "bold 20px 'Patrick Hand'";
+                ctx.fillStyle = currentColor; 
+                ctx.textAlign = "center"; ctx.textBaseline = "top";
+                wrapText(ctx, finalText, x, y, 200, 22);
+                saveState();
+            }
+        }
+
+        function wrapText(context, text, x, y, maxWidth, lineHeight) {
+            var words = text.split(' ');
+            var line = '';
+            for(var n = 0; n < words.length; n++) {
+                var testLine = line + words[n] + ' ';
+                var metrics = context.measureText(testLine);
+                var testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    context.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else { line = testLine; }
+            }
+            context.fillText(line, x, y);
+        }
+
+        function drawRect(x, y, w, h) { ctx.beginPath(); ctx.rect(x, y, w, h); ctx.stroke(); }
+        function drawCircle(x1, y1, x2, y2) { const r = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)); ctx.beginPath(); ctx.arc(x1, y1, r, 0, 2 * Math.PI); ctx.stroke(); }
+        function drawArrow(x1, y1, x2, y2) {
+            const head = 15; const angle = Math.atan2(y2-y1, x2-x1);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2-head*Math.cos(angle-Math.PI/6), y2-head*Math.sin(angle-Math.PI/6)); ctx.lineTo(x2-head*Math.cos(angle+Math.PI/6), y2-head*Math.sin(angle+Math.PI/6)); ctx.lineTo(x2, y2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1+head*Math.cos(angle-Math.PI/6), y1+head*Math.sin(angle-Math.PI/6)); ctx.lineTo(x1+head*Math.cos(angle+Math.PI/6), y1+head*Math.sin(angle+Math.PI/6)); ctx.lineTo(x1, y1); ctx.fill();
+        }
+
+        canvas.addEventListener('mousedown', startDraw); canvas.addEventListener('touchstart', startDraw);
+        canvas.addEventListener('mousemove', drawing); canvas.addEventListener('touchmove', drawing);
+        canvas.addEventListener('mouseup', stopDraw); canvas.addEventListener('touchend', stopDraw);
+
+        function setTool(tool, btn) { currentTool = tool; document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => { if(b.id !== 'btnMagic') b.classList.remove('active'); }); btn.classList.add('active'); }
+        function setColor(col, btn) { currentColor = col; if(btn) { document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => { if(b.querySelector('.rounded-full')) b.classList.remove('active'); }); btn.classList.add('active'); } }
+        function toggleMagic() { isMagicOn = !isMagicOn; const btn = document.getElementById('btnMagic'); isMagicOn ? btn.classList.add('magic-active') : btn.classList.remove('magic-active'); Swal.fire({toast:true, position:'top', icon: isMagicOn?'success':'info', title: isMagicOn?'Magia ON':'Magia OFF', showConfirmButton:false, timer:1000}); }
+
+        function saveState() { if (history.length > 5) history.shift(); history.push(canvas.toDataURL()); }
+        function deshacer() { if (history.length > 0) { history.pop(); const prevState = history[history.length - 1]; if(prevState) { const img = new Image(); img.src = prevState; img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0); } } else borrarLienzoSmart(false); } }
+        function borrarLienzoSmart(confirm = true) { const action = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); if (currentMode === 'photo' && imgDrawProps) dibujarFondoEnCanvas(imgDrawProps.img); history = []; }; if(confirm) Swal.fire({title: '¿Limpiar?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33'}).then(r => { if(r.isConfirmed) action(); }); else action(); }
+
+        function obtenerImagenFinal(bgWhite = false) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+            const tCtx = tempCanvas.getContext('2d');
+            
+            if(bgWhite) {
+                tCtx.fillStyle = '#ffffff'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                tCtx.drawImage(canvas, 0, 0);
+            } else if(currentMode === 'paper') {
+                tCtx.fillStyle = '#fdf6e3'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                tCtx.strokeStyle = '#e2e2e2'; tCtx.lineWidth = 1;
+                for(let i=30; i<tempCanvas.height; i+=30) { tCtx.beginPath(); tCtx.moveTo(0, i); tCtx.lineTo(tempCanvas.width, i); tCtx.stroke(); }
+                tCtx.strokeStyle = '#d42a2a'; tCtx.lineWidth = 2; tCtx.beginPath(); tCtx.moveTo(40, 0); tCtx.lineTo(40, tempCanvas.height); tCtx.stroke();
+                tCtx.drawImage(canvas, 0, 0);
+            } else {
+                tCtx.fillStyle = '#000'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                tCtx.drawImage(canvas, 0, 0);
+            }
+            return tempCanvas.toDataURL('image/png');
+        }
+
+        async function guardarEnGaleria() {
+            const { value: nombre } = await Swal.fire({ title: 'Guardar', input: 'text', inputValue: `Dibujo ${new Date().toLocaleDateString()}`, showCancelButton: true, confirmButtonColor: '#00E5FF' });
+            if (nombre) {
+                const imgData = obtenerImagenFinal();
+                const dibujo = { id: Date.now(), nombre: nombre, data: imgData, fecha: new Date().toLocaleString() };
+                let guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]');
+                guardados.unshift(dibujo);
+                localStorage.setItem('celis_dibujos', JSON.stringify(guardados));
+                Swal.fire({toast:true, position:'top', icon:'success', title:'Guardado', timer:1500});
+            }
+        }
+
+        function abrirGaleria() {
+            const modal = document.getElementById('galleryModal');
+            const lista = document.getElementById('listaDibujos');
+            const guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]');
+            modal.style.display = 'flex';
+            if(guardados.length === 0) { lista.innerHTML = '<div class="text-center py-4">Vacío</div>'; return; }
+            lista.innerHTML = guardados.map(d => `
+                <div class="saved-item">
+                    <div><div class="font-bold text-white text-sm">${d.nombre}</div><div class="text-xs text-gray-500">${d.fecha}</div></div>
+                    <div class="flex gap-2"><button onclick="cargarDibujo(${d.id})" class="btn-mini bg-blue-600 text-white">Abrir</button><button onclick="eliminarDibujo(${d.id})" class="btn-mini bg-red-900 text-red-300">X</button></div>
+                </div>`).join('');
+        }
+
+        function cargarDibujo(id) {
+            const guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]');
+            const dibujo = guardados.find(d => d.id === id);
+            if(dibujo) {
+                const img = new Image();
+                img.onload = () => {
+                    initApp('photo'); container.classList.remove('notebook-style');
+                    dibujarFondoEnCanvas(img);
+                    document.getElementById('galleryModal').style.display = 'none';
+                };
+                img.src = dibujo.data;
+            }
+        }
+
+        function eliminarDibujo(id) {
+            let guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]');
+            guardados = guardados.filter(d => d.id !== id);
+            localStorage.setItem('celis_dibujos', JSON.stringify(guardados));
+            abrirGaleria();
+        }
+
+        function generarPDFTaller() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const imgData = obtenerImagenFinal(true);
+            const pdfW = 210; const pdfH = 297; const margin = 10;
+            doc.setFontSize(16); doc.setTextColor(0); doc.text("HERRERÍA CELIS - NOTA DE TALLER", margin, 15);
+            doc.setFontSize(10); doc.setTextColor(100); doc.text(`Fecha: ${new Date().toLocaleString()}`, margin, 22);
+            doc.setLineWidth(0.5); doc.line(margin, 25, pdfW - margin, 25);
+            const img = new Image(); img.src = imgData;
+            img.onload = () => {
+                const imgRatio = img.width / img.height;
+                const areaW = pdfW - (margin * 2); const areaH = pdfH - 40;
+                let finalW, finalH;
+                if (areaW / areaH > imgRatio) { finalH = areaH; finalW = areaH * imgRatio; } else { finalW = areaW; finalH = areaW / imgRatio; }
+                const x = (pdfW - finalW) / 2; const y = 30;
+                doc.addImage(imgData, 'PNG', x, y, finalW, finalH);
+                doc.save(`Taller_Celis_${Date.now()}.pdf`);
+            };
+        }
+    </script>
+</body>
+</html>

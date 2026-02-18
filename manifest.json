@@ -1,0 +1,21 @@
+{
+  "name": "Celis Sketch - Libreta Digital",
+  "short_name": "Celis Sketch",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#2d3748",
+  "theme_color": "#00E5FF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "celis_sketch_icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "celis_sketch_icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
