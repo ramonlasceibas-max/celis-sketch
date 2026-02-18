@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Celis Sketchpad | App Oficial</title>
+    <title>Celis Sketchpad | V42 Arcos</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00E5FF">
@@ -49,7 +49,7 @@
         .top-bar { height: 60px; background: #1a202c; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border-bottom: 1px solid #4a5568; z-index: 50; }
         .bottom-bar { height: 80px; background: #1a202c; display: flex; align-items: center; justify-content: space-around; padding: 0 5px; overflow-x: auto; border-top: 1px solid #4a5568; z-index: 50; }
 
-        .tool-btn { width: 45px; height: 45px; border-radius: 10px; background: #2d3748; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #a0aec0; transition: 0.2s; flex-shrink: 0; border: 1px solid #4a5568; margin: 0 2px; }
+        .tool-btn { width: 42px; height: 42px; border-radius: 8px; background: #2d3748; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #a0aec0; transition: 0.2s; flex-shrink: 0; border: 1px solid #4a5568; margin: 0 2px; }
         .tool-btn.active { background: #00E5FF; color: #000; border-color: #00E5FF; transform: translateY(-3px); box-shadow: 0 0 10px rgba(0,229,255,0.3); }
         .btn-mini { padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; margin-left: 5px; cursor: pointer; }
         
@@ -72,7 +72,7 @@
         <button onclick="abrirGaleria()" class="mt-8 text-gray-400 hover:text-white border border-gray-600 px-4 py-2 rounded-lg flex items-center gap-2">
             <i class="fas fa-folder-open"></i> Ver Guardados
         </button>
-        <p class="text-gray-500 mt-4 text-xs">V41.0 App Oficial</p>
+        <p class="text-gray-500 mt-4 text-xs">V42.0 Arcos & Goma</p>
     </div>
 
     <div id="main-app">
@@ -100,20 +100,22 @@
         </div>
 
         <div class="bottom-bar">
-            <button onclick="toggleMagic()" id="btnMagic" class="tool-btn" title="Enderezar"><i class="fas fa-magic"></i></button>
-            <div class="w-px h-8 bg-gray-600 mx-1"></div>
+            <button onclick="setTool('eraser', this)" class="tool-btn text-pink-400" title="Goma"><i class="fas fa-eraser"></i></button>
             
             <button onclick="setTool('free', this)" class="tool-btn active"><i class="fas fa-pen"></i></button>
             <button onclick="setTool('rect', this)" class="tool-btn"><i class="far fa-square"></i></button>
+            
+            <button onclick="setTool('arc', this)" class="tool-btn text-white" title="Arco"><i class="fas fa-bezier-curve"></i></button>
+            
             <button onclick="setTool('circle', this)" class="tool-btn"><i class="far fa-circle"></i></button>
             <button onclick="setTool('arrow', this)" class="tool-btn"><i class="fas fa-arrows-alt-h"></i></button>
-            <button onclick="setTool('text', this)" class="tool-btn text-white font-bold font-serif" title="Texto / Etiquetas">T</button>
+            <button onclick="setTool('text', this)" class="tool-btn font-bold font-serif">T</button>
             
             <div class="w-px h-8 bg-gray-600 mx-1"></div>
 
             <button onclick="setColor('#00E5FF', this)" class="tool-btn" style="color:#00E5FF"><i class="fas fa-circle"></i></button>
             <button onclick="setColor('#FF4444', this)" class="tool-btn" style="color:#FF4444"><i class="fas fa-circle"></i></button>
-            <button onclick="setColor('#1a202c', this)" id="btnBlackColor" class="tool-btn" style="color:#1a202c"><i class="fas fa-circle"></i></button>
+            <button onclick="setColor('#FFFF00', this)" class="tool-btn" style="color:#FFFF00"><i class="fas fa-circle"></i></button> <button onclick="setColor('#1a202c', this)" id="btnBlackColor" class="tool-btn" style="color:#1a202c"><i class="fas fa-circle"></i></button>
         </div>
     </div>
 
@@ -134,8 +136,11 @@
         const mainApp = document.getElementById('main-app');
         const overlay = document.getElementById('modeOverlay');
         
-        let currentMode = ''; let imgDrawProps = null; let history = []; let isMagicOn = false;
+        let currentMode = ''; let imgDrawProps = null; let history = []; 
         let isDrawing = false; let points = []; let currentTool = 'free'; let currentColor = '#00E5FF'; let snapshot;
+        
+        // Variables para Arco
+        let isBending = false; 
 
         function initApp(mode) {
             currentMode = mode;
@@ -200,86 +205,90 @@
         }
 
         const startDraw = async (e) => {
+            const pos = getPos(e);
+            
             if(currentTool === 'text') {
-                const pos = getPos(e);
-                e.preventDefault();
-                await insertarTexto(pos.x, pos.y);
+                e.preventDefault(); await insertarTexto(pos.x, pos.y); return;
+            }
+
+            // Lógica ARCO: Si ya dibujamos la línea base, este toque es para curvar
+            if(currentTool === 'arc' && isBending) {
+                isDrawing = true;
+                // No reseteamos points, usamos points[0] (inicio) y points[1] (fin)
+                // y ahora movemos el control point
                 return;
             }
+
             isDrawing = true;
-            const pos = getPos(e);
             points = [pos];
             snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
             ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
-            ctx.strokeStyle = currentColor; ctx.fillStyle = currentColor; ctx.lineWidth = 3;
+            
+            if (currentTool === 'eraser') {
+                ctx.strokeStyle = (currentMode === 'paper') ? '#fdf6e3' : '#ffffff';
+                ctx.lineWidth = 25;
+            } else {
+                ctx.strokeStyle = currentColor; ctx.fillStyle = currentColor; ctx.lineWidth = 3;
+            }
         }
 
         const drawing = (e) => {
             if (!isDrawing) return;
             if(e.type === 'touchmove') e.preventDefault(); 
             const pos = getPos(e);
-            points.push(pos);
-            if (currentTool === 'free') {
-                ctx.lineTo(pos.x, pos.y); ctx.stroke();
-            } else {
+            
+            if(currentTool === 'arc' && isBending) {
+                // Curvando el arco existente
                 ctx.putImageData(snapshot, 0, 0);
-                if (currentTool === 'rect') drawRect(points[0].x, points[0].y, pos.x - points[0].x, pos.y - points[0].y);
-                else if (currentTool === 'circle') drawCircle(points[0].x, points[0].y, pos.x, pos.y);
-                else if (currentTool === 'arrow') drawArrow(points[0].x, points[0].y, pos.x, pos.y);
+                drawCurve(points[0], points[1], pos); // pos es el punto de control
+                return;
+            }
+
+            if(currentTool !== 'free') ctx.putImageData(snapshot, 0, 0);
+            
+            if (currentTool === 'free' || currentTool === 'eraser') {
+                points.push(pos);
+                ctx.lineTo(pos.x, pos.y); ctx.stroke();
+            } else if (currentTool === 'rect') {
+                drawRect(points[0].x, points[0].y, pos.x - points[0].x, pos.y - points[0].y);
+            } else if (currentTool === 'circle') {
+                drawCircle(points[0].x, points[0].y, pos.x, pos.y);
+            } else if (currentTool === 'arrow') {
+                drawArrow(points[0].x, points[0].y, pos.x, pos.y);
+            } else if (currentTool === 'arc') {
+                // Dibujando la línea guía del arco
+                ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
+                // Dibujar línea punteada guía
+                ctx.save(); ctx.setLineDash([5, 5]); ctx.strokeStyle = 'gray'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
+                ctx.restore();
             }
         }
 
-        const stopDraw = () => {
+        const stopDraw = (e) => {
             if (!isDrawing) return;
             isDrawing = false;
-            if (currentTool === 'free' && isMagicOn && points.length > 5) {
-                const start = points[0]; const end = points[points.length - 1];
-                ctx.putImageData(snapshot, 0, 0);
-                ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+            
+            if (currentTool === 'arc') {
+                if (!isBending) {
+                    // Terminamos la línea base, ahora entramos en modo "curvar"
+                    const pos = getPos(e); // Punto final
+                    points[1] = pos; // Guardar fin
+                    isBending = true;
+                    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); // Guardar estado con la línea punteada? No, limpiamos
+                    // Instrucción visual
+                    Swal.fire({toast:true, position:'top', title:'¡Ahora arrastra para curvar!', timer:1500, showConfirmButton:false});
+                } else {
+                    // Terminamos de curvar
+                    isBending = false;
+                    saveState();
+                }
+                return;
             }
             saveState();
         }
 
-        async function insertarTexto(x, y) {
-            const { value: text } = await Swal.fire({
-                title: 'Escribir',
-                input: 'textarea',
-                inputPlaceholder: 'Ej: 1.50 (se agrega m) o .50 (se agrega cm) o Ventana Baño',
-                showCancelButton: true,
-                confirmButtonColor: '#00E5FF',
-                background: '#1a202c', color: '#fff'
-            });
-            if (text) {
-                let finalText = text;
-                const esNumero = !isNaN(parseFloat(text)) && isFinite(text);
-                if (esNumero) {
-                    if (text.startsWith('.')) finalText += 'cm';
-                    else finalText += 'm';
-                }
-                ctx.font = "bold 20px 'Patrick Hand'";
-                ctx.fillStyle = currentColor; 
-                ctx.textAlign = "center"; ctx.textBaseline = "top";
-                wrapText(ctx, finalText, x, y, 200, 22);
-                saveState();
-            }
-        }
-
-        function wrapText(context, text, x, y, maxWidth, lineHeight) {
-            var words = text.split(' ');
-            var line = '';
-            for(var n = 0; n < words.length; n++) {
-                var testLine = line + words[n] + ' ';
-                var metrics = context.measureText(testLine);
-                var testWidth = metrics.width;
-                if (testWidth > maxWidth && n > 0) {
-                    context.fillText(line, x, y);
-                    line = words[n] + ' ';
-                    y += lineHeight;
-                } else { line = testLine; }
-            }
-            context.fillText(line, x, y);
-        }
-
+        // HERRAMIENTAS GEOMÉTRICAS
         function drawRect(x, y, w, h) { ctx.beginPath(); ctx.rect(x, y, w, h); ctx.stroke(); }
         function drawCircle(x1, y1, x2, y2) { const r = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)); ctx.beginPath(); ctx.arc(x1, y1, r, 0, 2 * Math.PI); ctx.stroke(); }
         function drawArrow(x1, y1, x2, y2) {
@@ -288,107 +297,68 @@
             ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2-head*Math.cos(angle-Math.PI/6), y2-head*Math.sin(angle-Math.PI/6)); ctx.lineTo(x2-head*Math.cos(angle+Math.PI/6), y2-head*Math.sin(angle+Math.PI/6)); ctx.lineTo(x2, y2); ctx.fill();
             ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1+head*Math.cos(angle-Math.PI/6), y1+head*Math.sin(angle-Math.PI/6)); ctx.lineTo(x1+head*Math.cos(angle+Math.PI/6), y1+head*Math.sin(angle+Math.PI/6)); ctx.lineTo(x1, y1); ctx.fill();
         }
+        function drawCurve(start, end, control) {
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            ctx.quadraticCurveTo(control.x, control.y, end.x, end.y);
+            ctx.stroke();
+        }
+
+        async function insertarTexto(x, y) {
+            const { value: text } = await Swal.fire({
+                title: 'Escribir', input: 'textarea', inputPlaceholder: 'Texto...',
+                showCancelButton: true, confirmButtonColor: '#00E5FF', background: '#1a202c', color: '#fff'
+            });
+            if (text) {
+                let finalText = text;
+                const esNumero = !isNaN(parseFloat(text)) && isFinite(text);
+                if (esNumero) { if (text.startsWith('.')) finalText += 'cm'; else finalText += 'm'; }
+                ctx.font = "bold 20px 'Patrick Hand'"; ctx.fillStyle = currentColor; ctx.textAlign = "center"; ctx.textBaseline = "top";
+                wrapText(ctx, finalText, x, y, 200, 22);
+                saveState();
+            }
+        }
+        function wrapText(context, text, x, y, maxWidth, lineHeight) {
+            var words = text.split(' '); var line = '';
+            for(var n = 0; n < words.length; n++) {
+                var testLine = line + words[n] + ' '; var metrics = context.measureText(testLine);
+                if (metrics.width > maxWidth && n > 0) { context.fillText(line, x, y); line = words[n] + ' '; y += lineHeight; } else { line = testLine; }
+            } context.fillText(line, x, y);
+        }
 
         canvas.addEventListener('mousedown', startDraw); canvas.addEventListener('touchstart', startDraw);
         canvas.addEventListener('mousemove', drawing); canvas.addEventListener('touchmove', drawing);
         canvas.addEventListener('mouseup', stopDraw); canvas.addEventListener('touchend', stopDraw);
 
-        function setTool(tool, btn) { currentTool = tool; document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => { if(b.id !== 'btnMagic') b.classList.remove('active'); }); btn.classList.add('active'); }
-        function setColor(col, btn) { currentColor = col; if(btn) { document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => { if(b.querySelector('.rounded-full')) b.classList.remove('active'); }); btn.classList.add('active'); } }
-        function toggleMagic() { isMagicOn = !isMagicOn; const btn = document.getElementById('btnMagic'); isMagicOn ? btn.classList.add('magic-active') : btn.classList.remove('magic-active'); Swal.fire({toast:true, position:'top', icon: isMagicOn?'success':'info', title: isMagicOn?'Magia ON':'Magia OFF', showConfirmButton:false, timer:1000}); }
+        function setTool(tool, btn) { 
+            currentTool = tool; 
+            isBending = false; // Resetear arco por si acaso
+            document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => b.classList.remove('active')); 
+            btn.classList.add('active'); 
+        }
+        function setColor(col, btn) { 
+            currentColor = col; 
+            if(currentTool === 'eraser') setTool('free', document.querySelector('.bottom-bar .tool-btn')); // Si cambia color, quita goma
+            if(btn) { document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => { if(b.querySelector('.rounded-full')) b.classList.remove('active'); }); btn.classList.add('active'); } 
+        }
 
         function saveState() { if (history.length > 5) history.shift(); history.push(canvas.toDataURL()); }
         function deshacer() { if (history.length > 0) { history.pop(); const prevState = history[history.length - 1]; if(prevState) { const img = new Image(); img.src = prevState; img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0); } } else borrarLienzoSmart(false); } }
         function borrarLienzoSmart(confirm = true) { const action = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); if (currentMode === 'photo' && imgDrawProps) dibujarFondoEnCanvas(imgDrawProps.img); history = []; }; if(confirm) Swal.fire({title: '¿Limpiar?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33'}).then(r => { if(r.isConfirmed) action(); }); else action(); }
 
         function obtenerImagenFinal(bgWhite = false) {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
-            const tCtx = tempCanvas.getContext('2d');
-            
-            if(bgWhite) {
-                tCtx.fillStyle = '#ffffff'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                tCtx.drawImage(canvas, 0, 0);
-            } else if(currentMode === 'paper') {
-                tCtx.fillStyle = '#fdf6e3'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                tCtx.strokeStyle = '#e2e2e2'; tCtx.lineWidth = 1;
-                for(let i=30; i<tempCanvas.height; i+=30) { tCtx.beginPath(); tCtx.moveTo(0, i); tCtx.lineTo(tempCanvas.width, i); tCtx.stroke(); }
-                tCtx.strokeStyle = '#d42a2a'; tCtx.lineWidth = 2; tCtx.beginPath(); tCtx.moveTo(40, 0); tCtx.lineTo(40, tempCanvas.height); tCtx.stroke();
-                tCtx.drawImage(canvas, 0, 0);
-            } else {
-                tCtx.fillStyle = '#000'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                tCtx.drawImage(canvas, 0, 0);
-            }
+            const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height; const tCtx = tempCanvas.getContext('2d');
+            if(bgWhite) { tCtx.fillStyle = '#ffffff'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height); tCtx.drawImage(canvas, 0, 0); } 
+            else if(currentMode === 'paper') { tCtx.fillStyle = '#fdf6e3'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height); tCtx.strokeStyle = '#e2e2e2'; tCtx.lineWidth = 1; for(let i=30; i<tempCanvas.height; i+=30) { tCtx.beginPath(); tCtx.moveTo(0, i); tCtx.lineTo(tempCanvas.width, i); tCtx.stroke(); } tCtx.strokeStyle = '#d42a2a'; tCtx.lineWidth = 2; tCtx.beginPath(); tCtx.moveTo(40, 0); tCtx.lineTo(40, tempCanvas.height); tCtx.stroke(); tCtx.drawImage(canvas, 0, 0); } 
+            else { tCtx.fillStyle = '#000'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height); tCtx.drawImage(canvas, 0, 0); }
             return tempCanvas.toDataURL('image/png');
         }
 
-        async function guardarEnGaleria() {
-            const { value: nombre } = await Swal.fire({ title: 'Guardar', input: 'text', inputValue: `Dibujo ${new Date().toLocaleDateString()}`, showCancelButton: true, confirmButtonColor: '#00E5FF' });
-            if (nombre) {
-                const imgData = obtenerImagenFinal();
-                const dibujo = { id: Date.now(), nombre: nombre, data: imgData, fecha: new Date().toLocaleString() };
-                let guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]');
-                guardados.unshift(dibujo);
-                localStorage.setItem('celis_dibujos', JSON.stringify(guardados));
-                Swal.fire({toast:true, position:'top', icon:'success', title:'Guardado', timer:1500});
-            }
-        }
-
-        function abrirGaleria() {
-            const modal = document.getElementById('galleryModal');
-            const lista = document.getElementById('listaDibujos');
-            const guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]');
-            modal.style.display = 'flex';
-            if(guardados.length === 0) { lista.innerHTML = '<div class="text-center py-4">Vacío</div>'; return; }
-            lista.innerHTML = guardados.map(d => `
-                <div class="saved-item">
-                    <div><div class="font-bold text-white text-sm">${d.nombre}</div><div class="text-xs text-gray-500">${d.fecha}</div></div>
-                    <div class="flex gap-2"><button onclick="cargarDibujo(${d.id})" class="btn-mini bg-blue-600 text-white">Abrir</button><button onclick="eliminarDibujo(${d.id})" class="btn-mini bg-red-900 text-red-300">X</button></div>
-                </div>`).join('');
-        }
-
-        function cargarDibujo(id) {
-            const guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]');
-            const dibujo = guardados.find(d => d.id === id);
-            if(dibujo) {
-                const img = new Image();
-                img.onload = () => {
-                    initApp('photo'); container.classList.remove('notebook-style');
-                    dibujarFondoEnCanvas(img);
-                    document.getElementById('galleryModal').style.display = 'none';
-                };
-                img.src = dibujo.data;
-            }
-        }
-
-        function eliminarDibujo(id) {
-            let guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]');
-            guardados = guardados.filter(d => d.id !== id);
-            localStorage.setItem('celis_dibujos', JSON.stringify(guardados));
-            abrirGaleria();
-        }
-
-        function generarPDFTaller() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            const imgData = obtenerImagenFinal(true);
-            const pdfW = 210; const pdfH = 297; const margin = 10;
-            doc.setFontSize(16); doc.setTextColor(0); doc.text("HERRERÍA CELIS - NOTA DE TALLER", margin, 15);
-            doc.setFontSize(10); doc.setTextColor(100); doc.text(`Fecha: ${new Date().toLocaleString()}`, margin, 22);
-            doc.setLineWidth(0.5); doc.line(margin, 25, pdfW - margin, 25);
-            const img = new Image(); img.src = imgData;
-            img.onload = () => {
-                const imgRatio = img.width / img.height;
-                const areaW = pdfW - (margin * 2); const areaH = pdfH - 40;
-                let finalW, finalH;
-                if (areaW / areaH > imgRatio) { finalH = areaH; finalW = areaH * imgRatio; } else { finalW = areaW; finalH = areaW / imgRatio; }
-                const x = (pdfW - finalW) / 2; const y = 30;
-                doc.addImage(imgData, 'PNG', x, y, finalW, finalH);
-                doc.save(`Taller_Celis_${Date.now()}.pdf`);
-            };
-        }
+        async function guardarEnGaleria() { const { value: nombre } = await Swal.fire({ title: 'Guardar', input: 'text', inputValue: `Dibujo ${new Date().toLocaleDateString()}`, showCancelButton: true, confirmButtonColor: '#00E5FF' }); if (nombre) { const imgData = obtenerImagenFinal(); const dibujo = { id: Date.now(), nombre: nombre, data: imgData, fecha: new Date().toLocaleString() }; let guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]'); guardados.unshift(dibujo); localStorage.setItem('celis_dibujos', JSON.stringify(guardados)); Swal.fire({toast:true, position:'top', icon:'success', title:'Guardado', timer:1500}); } }
+        function abrirGaleria() { const modal = document.getElementById('galleryModal'); const lista = document.getElementById('listaDibujos'); const guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]'); modal.style.display = 'flex'; if(guardados.length === 0) { lista.innerHTML = '<div class="text-center py-4">Vacío</div>'; return; } lista.innerHTML = guardados.map(d => `<div class="saved-item"><div><div class="font-bold text-white text-sm">${d.nombre}</div><div class="text-xs text-gray-500">${d.fecha}</div></div><div class="flex gap-2"><button onclick="cargarDibujo(${d.id})" class="btn-mini bg-blue-600 text-white">Abrir</button><button onclick="eliminarDibujo(${d.id})" class="btn-mini bg-red-900 text-red-300">X</button></div></div>`).join(''); }
+        function cargarDibujo(id) { const guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]'); const dibujo = guardados.find(d => d.id === id); if(dibujo) { const img = new Image(); img.onload = () => { initApp('photo'); container.classList.remove('notebook-style'); dibujarFondoEnCanvas(img); document.getElementById('galleryModal').style.display = 'none'; }; img.src = dibujo.data; } }
+        function eliminarDibujo(id) { let guardados = JSON.parse(localStorage.getItem('celis_dibujos') || '[]'); guardados = guardados.filter(d => d.id !== id); localStorage.setItem('celis_dibujos', JSON.stringify(guardados)); abrirGaleria(); }
+        function generarPDFTaller() { const { jsPDF } = window.jspdf; const doc = new jsPDF(); const imgData = obtenerImagenFinal(true); const pdfW = 210; const pdfH = 297; const margin = 10; doc.setFontSize(16); doc.setTextColor(0); doc.text("HERRERÍA CELIS - NOTA DE TALLER", margin, 15); doc.setFontSize(10); doc.setTextColor(100); doc.text(`Fecha: ${new Date().toLocaleString()}`, margin, 22); doc.setLineWidth(0.5); doc.line(margin, 25, pdfW - margin, 25); const img = new Image(); img.src = imgData; img.onload = () => { const imgRatio = img.width / img.height; const areaW = pdfW - (margin * 2); const areaH = pdfH - 40; let finalW, finalH; if (areaW / areaH > imgRatio) { finalH = areaH; finalW = areaH * imgRatio; } else { finalW = areaW; finalH = areaW / imgRatio; } const x = (pdfW - finalW) / 2; const y = 30; doc.addImage(imgData, 'PNG', x, y, finalW, finalH); doc.save(`Taller_Celis_${Date.now()}.pdf`); }; }
     </script>
-    
 </body>
-
 </html>
