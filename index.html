@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Celis Sketchpad | V42 Arcos</title>
+    <title>Celis Sketchpad | V43 Full</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00E5FF">
@@ -47,9 +47,13 @@
 
         /* BARRAS */
         .top-bar { height: 60px; background: #1a202c; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border-bottom: 1px solid #4a5568; z-index: 50; }
-        .bottom-bar { height: 80px; background: #1a202c; display: flex; align-items: center; justify-content: space-around; padding: 0 5px; overflow-x: auto; border-top: 1px solid #4a5568; z-index: 50; }
+        .bottom-bar { height: 80px; background: #1a202c; display: flex; align-items: center; padding: 0 10px; overflow-x: auto; border-top: 1px solid #4a5568; z-index: 50; white-space: nowrap; }
+        
+        /* Scroll oculto pero funcional */
+        .bottom-bar::-webkit-scrollbar { display: none; }
+        .bottom-bar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        .tool-btn { width: 42px; height: 42px; border-radius: 8px; background: #2d3748; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #a0aec0; transition: 0.2s; flex-shrink: 0; border: 1px solid #4a5568; margin: 0 2px; }
+        .tool-btn { width: 42px; height: 42px; border-radius: 8px; background: #2d3748; display: inline-flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #a0aec0; transition: 0.2s; flex-shrink: 0; border: 1px solid #4a5568; margin: 0 3px; }
         .tool-btn.active { background: #00E5FF; color: #000; border-color: #00E5FF; transform: translateY(-3px); box-shadow: 0 0 10px rgba(0,229,255,0.3); }
         .btn-mini { padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; margin-left: 5px; cursor: pointer; }
         
@@ -72,7 +76,7 @@
         <button onclick="abrirGaleria()" class="mt-8 text-gray-400 hover:text-white border border-gray-600 px-4 py-2 rounded-lg flex items-center gap-2">
             <i class="fas fa-folder-open"></i> Ver Guardados
         </button>
-        <p class="text-gray-500 mt-4 text-xs">V42.0 Arcos & Goma</p>
+        <p class="text-gray-500 mt-4 text-xs">V43.0 Full (Magia+Arco)</p>
     </div>
 
     <div id="main-app">
@@ -100,18 +104,21 @@
         </div>
 
         <div class="bottom-bar">
+            <button onclick="toggleMagic()" id="btnMagic" class="tool-btn" title="Enderezar"><i class="fas fa-magic"></i></button>
+            <div class="inline-block w-px h-6 bg-gray-600 mx-1 align-middle"></div>
+            
             <button onclick="setTool('eraser', this)" class="tool-btn text-pink-400" title="Goma"><i class="fas fa-eraser"></i></button>
             
             <button onclick="setTool('free', this)" class="tool-btn active"><i class="fas fa-pen"></i></button>
-            <button onclick="setTool('rect', this)" class="tool-btn"><i class="far fa-square"></i></button>
             
             <button onclick="setTool('arc', this)" class="tool-btn text-white" title="Arco"><i class="fas fa-bezier-curve"></i></button>
             
+            <button onclick="setTool('rect', this)" class="tool-btn"><i class="far fa-square"></i></button>
             <button onclick="setTool('circle', this)" class="tool-btn"><i class="far fa-circle"></i></button>
             <button onclick="setTool('arrow', this)" class="tool-btn"><i class="fas fa-arrows-alt-h"></i></button>
             <button onclick="setTool('text', this)" class="tool-btn font-bold font-serif">T</button>
             
-            <div class="w-px h-8 bg-gray-600 mx-1"></div>
+            <div class="inline-block w-px h-6 bg-gray-600 mx-1 align-middle"></div>
 
             <button onclick="setColor('#00E5FF', this)" class="tool-btn" style="color:#00E5FF"><i class="fas fa-circle"></i></button>
             <button onclick="setColor('#FF4444', this)" class="tool-btn" style="color:#FF4444"><i class="fas fa-circle"></i></button>
@@ -139,8 +146,9 @@
         let currentMode = ''; let imgDrawProps = null; let history = []; 
         let isDrawing = false; let points = []; let currentTool = 'free'; let currentColor = '#00E5FF'; let snapshot;
         
-        // Variables para Arco
+        // Variables Extras
         let isBending = false; 
+        let isMagicOn = false;
 
         function initApp(mode) {
             currentMode = mode;
@@ -211,11 +219,9 @@
                 e.preventDefault(); await insertarTexto(pos.x, pos.y); return;
             }
 
-            // Lógica ARCO: Si ya dibujamos la línea base, este toque es para curvar
+            // Lógica ARCO
             if(currentTool === 'arc' && isBending) {
                 isDrawing = true;
-                // No reseteamos points, usamos points[0] (inicio) y points[1] (fin)
-                // y ahora movemos el control point
                 return;
             }
 
@@ -238,9 +244,8 @@
             const pos = getPos(e);
             
             if(currentTool === 'arc' && isBending) {
-                // Curvando el arco existente
                 ctx.putImageData(snapshot, 0, 0);
-                drawCurve(points[0], points[1], pos); // pos es el punto de control
+                drawCurve(points[0], points[1], pos);
                 return;
             }
 
@@ -256,9 +261,7 @@
             } else if (currentTool === 'arrow') {
                 drawArrow(points[0].x, points[0].y, pos.x, pos.y);
             } else if (currentTool === 'arc') {
-                // Dibujando la línea guía del arco
                 ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
-                // Dibujar línea punteada guía
                 ctx.save(); ctx.setLineDash([5, 5]); ctx.strokeStyle = 'gray'; ctx.lineWidth = 1;
                 ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
                 ctx.restore();
@@ -271,20 +274,25 @@
             
             if (currentTool === 'arc') {
                 if (!isBending) {
-                    // Terminamos la línea base, ahora entramos en modo "curvar"
-                    const pos = getPos(e); // Punto final
-                    points[1] = pos; // Guardar fin
+                    const pos = getPos(e);
+                    points[1] = pos;
                     isBending = true;
-                    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); // Guardar estado con la línea punteada? No, limpiamos
-                    // Instrucción visual
+                    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     Swal.fire({toast:true, position:'top', title:'¡Ahora arrastra para curvar!', timer:1500, showConfirmButton:false});
                 } else {
-                    // Terminamos de curvar
                     isBending = false;
                     saveState();
                 }
                 return;
             }
+
+            // LÓGICA DE MAGIA (Enderezar)
+            if (currentTool === 'free' && isMagicOn && points.length > 5) {
+                const start = points[0]; const end = points[points.length - 1];
+                ctx.putImageData(snapshot, 0, 0); // Borra el garabato
+                ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke(); // Dibuja recta
+            }
+
             saveState();
         }
 
@@ -332,14 +340,23 @@
 
         function setTool(tool, btn) { 
             currentTool = tool; 
-            isBending = false; // Resetear arco por si acaso
-            document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => b.classList.remove('active')); 
+            isBending = false; 
+            document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => { 
+                if(b.id !== 'btnMagic') b.classList.remove('active'); 
+            }); 
             btn.classList.add('active'); 
         }
         function setColor(col, btn) { 
             currentColor = col; 
-            if(currentTool === 'eraser') setTool('free', document.querySelector('.bottom-bar .tool-btn')); // Si cambia color, quita goma
+            if(currentTool === 'eraser') setTool('free', document.querySelector('.bottom-bar .tool-btn:nth-child(4)')); 
             if(btn) { document.querySelectorAll('.bottom-bar .tool-btn').forEach(b => { if(b.querySelector('.rounded-full')) b.classList.remove('active'); }); btn.classList.add('active'); } 
+        }
+
+        function toggleMagic() { 
+            isMagicOn = !isMagicOn; 
+            const btn = document.getElementById('btnMagic'); 
+            isMagicOn ? btn.classList.add('magic-active') : btn.classList.remove('magic-active'); 
+            Swal.fire({toast:true, position:'top', icon: isMagicOn?'success':'info', title: isMagicOn?'Magia ON':'Magia OFF', showConfirmButton:false, timer:1000}); 
         }
 
         function saveState() { if (history.length > 5) history.shift(); history.push(canvas.toDataURL()); }
