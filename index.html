@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Celis Sketchpad | V65 FINAL</title>
+    <title>Celis Sketchpad | V66 ESTABLE</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a202c">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -88,7 +88,7 @@
             <button onclick="initApp('photo')" class="w-32 h-32 bg-cyan-500 text-black rounded-xl font-bold border-4 border-white shadow-xl flex flex-col items-center justify-center"><i class="fas fa-camera text-2xl mb-2"></i>FOTO</button>
         </div>
         <button onclick="abrirGaleria()" class="mt-8 text-gray-300 border border-gray-600 px-6 py-3 rounded-lg flex items-center gap-2"><i class="fas fa-folder-open text-yellow-500"></i> Mis Dibujos</button>
-        <p class="mt-4 text-xs text-gray-600">v65 BLINDADA</p>
+        <p class="mt-4 text-xs text-gray-600">v66 RENDIMIENTO ESTABLE</p>
     </div>
 
     <div id="main-app">
@@ -102,6 +102,7 @@
                 <button onclick="deshacer()" class="tool-btn"><i class="fas fa-undo"></i></button>
                 <button onclick="borrarLienzoSmart()" class="tool-btn text-red-500"><i class="fas fa-trash"></i></button>
                 <button onclick="guardarNuevo()" class="bg-green-600 text-white px-3 py-2 rounded font-bold text-xs shadow flex-shrink-0">GUARDAR</button>
+                <button onclick="descargarImagen()" class="bg-blue-600 text-white px-3 py-2 rounded font-bold text-xs shadow flex-shrink-0">IMG</button>
                 <button onclick="generarPDFTaller()" class="bg-white text-black px-3 py-2 rounded font-bold text-xs shadow flex-shrink-0">PDF</button>
             </div>
         </div>
@@ -152,7 +153,7 @@
             document.getElementById('main-app').style.display = 'flex';
             if(mode === 'paper') container.classList.add('notebook-style');
             else if(mode === 'photo') document.getElementById('cameraInput').click();
-            setTimeout(resizeCanvas, 300); 
+            setTimeout(resizeCanvas, 200); 
         }
 
         function resizeCanvas() {
@@ -307,7 +308,12 @@
             document.getElementById('btnMagic').classList.toggle('magic-active');
         }
 
-        function saveState() { history.push(canvas.toDataURL()); if(history.length > 20) history.shift(); }
+        // REDUCIDO A 10 PASOS PARA PREVENIR CRASHEO DE MEMORIA RAM EN SAFARI / IPHONE
+        function saveState() { 
+            history.push(canvas.toDataURL()); 
+            if(history.length > 10) history.shift(); 
+        }
+        
         function deshacer() { if(history.length > 1) { history.pop(); let img = new Image(); img.src = history[history.length-1]; img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0); } } else { borrarLienzoSmart(); } }
         
         function borrarLienzoSmart() { 
@@ -322,10 +328,14 @@
         function guardarNuevo() {
             Swal.fire({ title: 'Nombre:', input: 'text', showCancelButton: true, confirmButtonColor: '#16a34a' }).then((result) => {
                 if (result.value) {
-                    const db = JSON.parse(localStorage.getItem('celis_db') || '[]');
-                    db.unshift({ nombre: result.value, data: canvas.toDataURL(), mode: currentMode, fecha: new Date().toLocaleDateString() });
-                    localStorage.setItem('celis_db', JSON.stringify(db));
-                    Swal.fire({toast:true, position:'top', icon:'success', title:'Guardado', timer:1500, showConfirmButton:false});
+                    try {
+                        const db = JSON.parse(localStorage.getItem('celis_db') || '[]');
+                        db.unshift({ nombre: result.value, data: canvas.toDataURL(), mode: currentMode, fecha: new Date().toLocaleDateString() });
+                        localStorage.setItem('celis_db', JSON.stringify(db));
+                        Swal.fire({toast:true, position:'top', icon:'success', title:'Guardado Interno', timer:1500, showConfirmButton:false});
+                    } catch (e) {
+                        Swal.fire('Memoria Llena', 'La memoria del navegador está llena. Borra dibujos antiguos en la Galería.', 'error');
+                    }
                 }
             });
         }
@@ -345,12 +355,9 @@
                 </div>`).join('');
         }
 
-        // ==========================================
-        // LA PIEZA REPARADA (CARGAR PROYECTOS VIEJOS)
-        // ==========================================
+        // FUNCIÓN REPARADA: ABRIR DIBUJO SIN PERDERLO
         function cargarDibujo(i) {
-            cerrarGaleria(); // Cierra el menú al instante para darte retroalimentación visual de que el botón sirvió
-            
+            cerrarGaleria(); // Se cierra al instante para que no estorbe
             const db = JSON.parse(localStorage.getItem('celis_db')); 
             const d = db[i]; 
             
@@ -364,10 +371,12 @@
                 container.classList.remove('notebook-style');
             }
 
-            // Damos 300ms a que la pantalla se reacomode sin afectar a los celulares rápidos
+            // Damos 150ms exactos para que el lienzo tome sus dimensiones correctas
             setTimeout(() => {
-                canvas.width = container.clientWidth;
-                canvas.height = container.clientHeight;
+                const rect = container.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                
                 ctx.lineCap = 'round'; 
                 ctx.lineJoin = 'round'; 
                 ctx.lineWidth = 3;
@@ -375,14 +384,12 @@
                 const img = new Image(); 
                 img.onload = () => { 
                     ctx.clearRect(0, 0, canvas.width, canvas.height); 
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height); // Estira sutilmente la imagen para cubrir el nuevo tamaño exacto del lienzo
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height); // Estampa a la perfección
                     history = []; 
-                    saveState(); 
+                    saveState(); // Inicializa el guardado de vuelta
                 };
-                
-                // CRÍTICO: La ruta (src) debe ir DESPUÉS del onload para que funcione siempre
                 img.src = d.data; 
-            }, 300);
+            }, 150);
         }
 
         function eliminarDibujo(i) {
@@ -396,12 +403,8 @@
 
         function cerrarGaleria() { document.getElementById('galleryModal').style.display = 'none'; }
 
-        function generarPDFTaller() {
-            const { jsPDF } = window.jspdf;
-            const orient = canvas.width > canvas.height ? 'l' : 'p';
-            const doc = new jsPDF(orient, 'mm', 'a4');
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
+        // NUEVA FUNCIÓN: DESCARGAR IMAGEN AL CELULAR (Evita crasheos)
+        function descargarImagen() {
             const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
             const tCtx = tempCanvas.getContext('2d');
             
@@ -412,11 +415,39 @@
             }
             tCtx.drawImage(canvas, 0, 0);
             
-            const finalImg = tempCanvas.toDataURL('image/png');
-            const imgProps = doc.getImageProperties(finalImg);
-            const pdfRatio = Math.min(pageWidth / imgProps.width, pageHeight / imgProps.height);
-            doc.addImage(finalImg, 'PNG', (pageWidth - imgProps.width*pdfRatio) / 2, (pageHeight - imgProps.height*pdfRatio) / 2, imgProps.width*pdfRatio, imgProps.height*pdfRatio);
-            doc.save(`Taller_Celis_${Date.now()}.pdf`);
+            const link = document.createElement('a');
+            link.download = `Celis_Proyecto_${Date.now()}.jpg`;
+            link.href = tempCanvas.toDataURL('image/jpeg', 0.9); // JPG de alta calidad que no consume RAM
+            link.click();
+        }
+
+        // MOTOR BLINDADO: GENERAR PDF SIN SATURAR MEMORIA
+        function generarPDFTaller() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const orient = canvas.width > canvas.height ? 'l' : 'p';
+                const doc = new jsPDF(orient, 'mm', 'a4');
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const tempCanvas = document.createElement('canvas'); tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+                const tCtx = tempCanvas.getContext('2d');
+                
+                tCtx.fillStyle = '#ffffff'; tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                if(currentMode === 'photo' && imgFondo) {
+                    const r = Math.min(canvas.width/imgFondo.width, canvas.height/imgFondo.height);
+                    tCtx.drawImage(imgFondo, (canvas.width-imgFondo.width*r)/2, (canvas.height-imgFondo.height*r)/2, imgFondo.width*r, imgFondo.height*r);
+                }
+                tCtx.drawImage(canvas, 0, 0);
+                
+                // CRÍTICO: Uso de compresión JPEG 0.8 en vez de PNG. Evita que la app te saque al inicio.
+                const finalImg = tempCanvas.toDataURL('image/jpeg', 0.8);
+                const imgProps = doc.getImageProperties(finalImg);
+                const pdfRatio = Math.min(pageWidth / imgProps.width, pageHeight / imgProps.height);
+                doc.addImage(finalImg, 'JPEG', (pageWidth - imgProps.width*pdfRatio) / 2, (pageHeight - imgProps.height*pdfRatio) / 2, imgProps.width*pdfRatio, imgProps.height*pdfRatio);
+                doc.save(`Taller_Celis_${Date.now()}.pdf`);
+            } catch (e) {
+                Swal.fire('Error', 'Memoria de dispositivo llena. Intenta usar el botón IMG.', 'error');
+            }
         }
     </script>
 </body>
